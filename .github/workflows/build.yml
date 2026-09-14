@@ -30,8 +30,7 @@ jobs:
             xz-utils \
             zstd \
             lzma \
-            dpkg \
-            ldid
+            dpkg
 
       - name: Install RootHide Theos
         run: |
@@ -40,7 +39,6 @@ jobs:
           export THEOS=/home/runner/theos
 
           rm -rf "$THEOS"
-          mkdir -p "$THEOS"
 
           git clone \
             --depth=1 \
@@ -63,7 +61,7 @@ jobs:
 
           SDK_URL="https://github.com/theos/sdks/releases/download/master-146e41f/iPhoneOS16.5.sdk.tar.xz"
 
-          echo "Downloading:"
+          echo "Downloading iOS 16.5 SDK..."
           echo "$SDK_URL"
 
           curl \
@@ -87,6 +85,9 @@ jobs:
 
           test -d "$THEOS/sdks/iPhoneOS16.5.sdk"
 
+          test -f \
+            "$THEOS/sdks/iPhoneOS16.5.sdk/SDKSettings.json"
+
       - name: Install iOS toolchain
         run: |
           set -e
@@ -105,15 +106,15 @@ jobs:
               TOOLCHAIN_ARCH="linux-arm64"
               ;;
             *)
-              echo "Unsupported runner architecture: $ARCH"
+              echo "Unsupported architecture: $ARCH"
               exit 1
               ;;
           esac
 
           TOOLCHAIN_URL="https://github.com/L1ghtmann/llvm-project/releases/latest/download/iOSToolchain-${TOOLCHAIN_ARCH}.tar.xz"
 
-          echo "Architecture: $ARCH"
-          echo "Toolchain:"
+          echo "Runner architecture: $ARCH"
+          echo "Toolchain URL:"
           echo "$TOOLCHAIN_URL"
 
           curl \
@@ -132,19 +133,18 @@ jobs:
             /tmp/iOSToolchain.tar.xz \
             -C "$THEOS/toolchain"
 
-          echo "===== TOOLCHAIN ====="
+          echo "===== TOOLCHAIN FILES ====="
+
           find "$THEOS/toolchain" \
-            -maxdepth 3 \
             -type f \
             \( \
               -name clang \
               -o -name clang++ \
               -o -name ld64.lld \
-              -o -name ldid \
             \) \
             -print
 
-      - name: Verify build environment
+      - name: Verify environment
         run: |
           set -e
 
@@ -153,29 +153,13 @@ jobs:
           echo "================================"
           echo "THEOS"
           echo "================================"
+
           echo "$THEOS"
 
-          echo "================================"
-          echo "SDK"
-          echo "================================"
-          test -d "$THEOS/sdks/iPhoneOS16.5.sdk"
-          ls -lah "$THEOS/sdks/iPhoneOS16.5.sdk"
+          test -d "$THEOS"
 
           echo "================================"
-          echo "SDK Settings"
-          echo "================================"
-          test -f "$THEOS/sdks/iPhoneOS16.5.sdk/SDKSettings.json"
-
-          echo "================================"
-          echo "TOOLCHAIN"
-          echo "================================"
-          find "$THEOS/toolchain" \
-            -type f \
-            \( -name clang -o -name clang++ \) \
-            -print
-
-          echo "================================"
-          echo "PACKAGE SCHEMES"
+          echo "ROOT HIDE THEOS"
           echo "================================"
 
           if [ -d "$THEOS/package" ]; then
@@ -186,14 +170,45 @@ jobs:
           fi
 
           echo "================================"
-          echo "ROOTHIDE SCHEME CHECK"
+          echo "SDK"
           echo "================================"
 
-          if grep -R "roothide" "$THEOS/makefiles" "$THEOS/package" 2>/dev/null | head -20; then
-            echo "RootHide package scheme detected."
-          else
-            echo "WARNING: RootHide package scheme was not found."
-          fi
+          test -d "$THEOS/sdks/iPhoneOS16.5.sdk"
+
+          ls -lah \
+            "$THEOS/sdks/iPhoneOS16.5.sdk"
+
+          echo "================================"
+          echo "SDK SETTINGS"
+          echo "================================"
+
+          test -f \
+            "$THEOS/sdks/iPhoneOS16.5.sdk/SDKSettings.json"
+
+          echo "================================"
+          echo "TOOLCHAIN"
+          echo "================================"
+
+          find "$THEOS/toolchain" \
+            -type f \
+            \( \
+              -name clang \
+              -o -name clang++ \
+              -o -name ld64.lld \
+            \) \
+            -print
+
+          echo "================================"
+          echo "ROOTHIDE SCHEME"
+          echo "================================"
+
+          grep -R "roothide" \
+            "$THEOS" \
+            --include='*.mk' \
+            --include='*.py' \
+            --include='*.pl' \
+            2>/dev/null \
+            | head -30 || true
 
       - name: Build RootHide package
         run: |
@@ -202,13 +217,13 @@ jobs:
           export THEOS=/home/runner/theos
 
           echo "================================"
-          echo "MAKE CLEAN"
+          echo "CLEAN"
           echo "================================"
 
           make clean
 
           echo "================================"
-          echo "BUILD"
+          echo "BUILD SCREEN SCALE 16"
           echo "================================"
 
           make package \
@@ -230,6 +245,7 @@ jobs:
           echo "================================"
 
           for deb in packages/*.deb; do
+            echo
             echo "===== $deb ====="
             dpkg-deb -I "$deb"
           done
@@ -239,6 +255,8 @@ jobs:
           echo "================================"
 
           for deb in packages/*.deb; do
+            echo
+            echo "===== $deb ====="
             dpkg-deb -c "$deb"
           done
 
