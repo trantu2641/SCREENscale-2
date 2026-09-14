@@ -2,6 +2,9 @@ name: Build ScreenScale16
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
@@ -16,6 +19,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             clang \
+            llvm \
             make \
             git \
             perl \
@@ -23,14 +27,15 @@ jobs:
             unzip \
             xz-utils \
             zstd \
-            curl
+            curl \
+            wget
 
       - name: Install Theos
         run: |
           git clone --recursive https://github.com/theos/theos.git /home/runner/theos
           echo "THEOS=/home/runner/theos" >> "$GITHUB_ENV"
 
-      - name: Install iOS SDK
+      - name: Install iOS SDKs
         run: |
           mkdir -p /home/runner/theos/sdks
 
@@ -38,18 +43,43 @@ jobs:
             https://github.com/theos/sdks.git \
             /tmp/theos-sdks
 
-          cp -R /tmp/theos-sdks/iPhoneOS*.sdk \
-            /home/runner/theos/sdks/
+          find /tmp/theos-sdks -maxdepth 1 -type d -name 'iPhoneOS*.sdk' \
+            -exec cp -R {} /home/runner/theos/sdks/ \;
 
           echo "Installed SDKs:"
           ls -lah /home/runner/theos/sdks
 
+      - name: Install Theos Linux toolchain
+        run: |
+          mkdir -p /home/runner/theos/toolchain/linux
+
+          git clone --recursive --depth 1 \
+            https://github.com/theos/llvm-project.git \
+            /tmp/llvm-project
+
+          cd /tmp/llvm-project
+
+          ./build-toolchain-linux.sh \
+            -o /home/runner/theos/toolchain/linux
+
+      - name: Verify toolchain
+        run: |
+          export THEOS=/home/runner/theos
+
+          echo "Checking clang..."
+          ls -lah "$THEOS/toolchain/linux/iphone/bin/" || true
+
+          echo "Checking clang++..."
+          find "$THEOS/toolchain/linux" -name clang -o -name clang++
+
       - name: Build
         run: |
           export THEOS=/home/runner/theos
+
           echo "THEOS=$THEOS"
-          echo "SDKs:"
-          ls -lah "$THEOS/sdks"
+          echo "SDK:"
+          ls "$THEOS/sdks"
+
           make package FINALPACKAGE=1
 
       - name: Upload DEB
