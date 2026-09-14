@@ -3,18 +3,8 @@
 
 #pragma mark - Configuration
 
-/*
- * 96% scale
- */
 static CGFloat const SC16_SCALE = 0.96;
-
-/*
- * Crop:
- * Portrait  = 34pt top + 34pt bottom
- * Landscape = 34pt left + 34pt right
- */
 static CGFloat const SC16_CROP = 34.0;
-
 static NSInteger const SC16_TAG = 0x5316;
 
 
@@ -40,9 +30,6 @@ static BOOL SC16IsSpringBoard(void)
 
 #pragma mark - Window Detection
 
-/*
- * Keyboard / text input windows must never be scaled.
- */
 static BOOL SC16IsKeyboardWindow(UIWindow *window)
 {
     if (!window)
@@ -66,14 +53,6 @@ static BOOL SC16IsKeyboardWindow(UIWindow *window)
 }
 
 
-/*
- * These are windows which are dangerous to transform.
- *
- * NOTE:
- * StatusBar is deliberately NOT excluded.
- *
- * We need StatusBar to participate in the scale.
- */
 static BOOL SC16IsUnsafeWindow(UIWindow *window)
 {
     if (!window)
@@ -93,9 +72,6 @@ static BOOL SC16IsUnsafeWindow(UIWindow *window)
     if ([name containsString:@"UIInput"])
         return YES;
 
-    /*
-     * System gesture windows should not be transformed.
-     */
     if ([name containsString:@"SystemGesture"])
         return YES;
 
@@ -114,18 +90,6 @@ static BOOL SC16IsRootSceneWindow(UIWindow *window)
     NSString *name = NSStringFromClass(window.class);
 
     return [name isEqualToString:@"UIRootSceneWindow"];
-}
-
-
-static BOOL SC16IsStatusBarWindow(UIWindow *window)
-{
-    if (!window)
-        return NO;
-
-    NSString *name = NSStringFromClass(window.class);
-
-    return [name containsString:@"StatusBar"] ||
-           [name containsString:@"_UIStatusBar"];
 }
 
 
@@ -148,10 +112,10 @@ static BOOL SC16IsFullDisplayWindow(UIWindow *window)
     CGFloat screenHeight = CGRectGetHeight(screenBounds);
 
     CGFloat shortSide = MIN(screenWidth, screenHeight);
-    CGFloat longSide  = MAX(screenWidth, screenHeight);
+    CGFloat longSide = MAX(screenWidth, screenHeight);
 
     CGFloat minShort = shortSide * 0.88;
-    CGFloat minLong  = longSide * 0.88;
+    CGFloat minLong = longSide * 0.88;
 
     if (width >= minShort && height >= minLong)
         return YES;
@@ -170,7 +134,8 @@ static UIView *SC16RootViewForWindow(UIWindow *window)
     if (!window)
         return nil;
 
-    UIViewController *root = window.rootViewController;
+    UIViewController *root =
+        window.rootViewController;
 
     if (!root)
         return nil;
@@ -186,16 +151,6 @@ static UIView *SC16RootViewForWindow(UIWindow *window)
 
 #pragma mark - Scale
 
-/*
- * Scale ONLY.
- *
- * Không thay:
- * - frame
- * - bounds
- * - center
- *
- * Không dùng UIWindow.layer.transform.
- */
 static void SC16ApplyScale(UIView *view)
 {
     if (!view)
@@ -215,7 +170,9 @@ static void SC16ApplyScale(UIView *view)
             SC16_SCALE
         );
 
-    if (!CGAffineTransformEqualToTransform(view.transform, target))
+    if (!CGAffineTransformEqualToTransform(
+            view.transform,
+            target))
     {
         view.transform = target;
     }
@@ -255,7 +212,8 @@ static void SC16ApplyCrop(UIWindow *window)
     if (width <= 0.0 || height <= 0.0)
         return;
 
-    UIView *overlay = SC16FindCropOverlay(window);
+    UIView *overlay =
+        SC16FindCropOverlay(window);
 
     if (!overlay)
     {
@@ -276,9 +234,6 @@ static void SC16ApplyCrop(UIWindow *window)
         [window addSubview:overlay];
     }
 
-    /*
-     * Make sure crop stays above the scaled root view.
-     */
     [window bringSubviewToFront:overlay];
 
     overlay.frame = bounds;
@@ -334,16 +289,16 @@ static void SC16ApplyCrop(UIWindow *window)
     {
         firstFrame =
             CGRectMake(
-                CGRectGetMinX(bounds),
-                CGRectGetMinY(bounds),
+                0.0,
+                0.0,
                 width,
                 SC16_CROP
             );
 
         secondFrame =
             CGRectMake(
-                CGRectGetMinX(bounds),
-                CGRectGetMaxY(bounds) - SC16_CROP,
+                0.0,
+                height - SC16_CROP,
                 width,
                 SC16_CROP
             );
@@ -352,16 +307,16 @@ static void SC16ApplyCrop(UIWindow *window)
     {
         firstFrame =
             CGRectMake(
-                CGRectGetMinX(bounds),
-                CGRectGetMinY(bounds),
+                0.0,
+                0.0,
                 SC16_CROP,
                 height
             );
 
         secondFrame =
             CGRectMake(
-                CGRectGetMaxX(bounds) - SC16_CROP,
-                CGRectGetMinY(bounds),
+                width - SC16_CROP,
+                0.0,
                 SC16_CROP,
                 height
             );
@@ -375,13 +330,8 @@ static void SC16ApplyCrop(UIWindow *window)
 }
 
 
-#pragma mark - Apply One Window
+#pragma mark - Window Apply
 
-/*
- * Normal window:
- * scale root view
- * crop window
- */
 static void SC16ApplyWindow(UIWindow *window)
 {
     if (!window)
@@ -404,12 +354,6 @@ static void SC16ApplyWindow(UIWindow *window)
 
     SC16ApplyScale(rootView);
 
-    /*
-     * Crop is applied only to windows which are
-     * actually large enough to represent a display.
-     *
-     * Small system panels are scaled but not cropped.
-     */
     if (SC16IsRootSceneWindow(window) ||
         SC16IsFullDisplayWindow(window))
     {
@@ -418,16 +362,6 @@ static void SC16ApplyWindow(UIWindow *window)
 }
 
 
-/*
- * Scale-only version.
- *
- * Used for:
- * - Status Bar
- * - Lock Screen auxiliary windows
- * - Notification Center auxiliary windows
- * - App Library auxiliary windows
- * - other SpringBoard UI windows
- */
 static void SC16ApplyScaleOnlyWindow(UIWindow *window)
 {
     if (!window)
@@ -452,9 +386,11 @@ static void SC16ApplyScaleOnlyWindow(UIWindow *window)
 }
 
 
-#pragma mark - Find Application Window
+#pragma mark - Application Window
 
-static UIWindow *SC16FindApplicationWindow(UIWindowScene *scene)
+static UIWindow *SC16FindApplicationWindow(
+    UIWindowScene *scene
+)
 {
     if (!scene)
         return nil;
@@ -478,15 +414,9 @@ static UIWindow *SC16FindApplicationWindow(UIWindowScene *scene)
         if (!window.rootViewController)
             continue;
 
-        /*
-         * Prefer the key window.
-         */
         if (window.isKeyWindow)
             return window;
 
-        /*
-         * Otherwise remember first usable window.
-         */
         if (!fallback)
             fallback = window;
     }
@@ -495,16 +425,8 @@ static UIWindow *SC16FindApplicationWindow(UIWindowScene *scene)
 }
 
 
-#pragma mark - SpringBoard Window Priority
+#pragma mark - Largest SpringBoard Window
 
-/*
- * We use the window ordering only to decide
- * which windows are likely to represent the
- * actual display.
- *
- * We do NOT change windowLevel.
- * We do NOT change layer.transform.
- */
 static UIWindow *SC16FindLargestDisplayWindow(
     NSArray<UIWindow *> *windows
 )
@@ -566,26 +488,27 @@ static void SC16ApplyAll(void)
 
 
     /*
-     * ============================================================
+     * ==========================================================
      * SPRINGBOARD
-     * ============================================================
+     * ==========================================================
      */
     if (SC16IsSpringBoard())
     {
-        /*
-         * First pass:
-         *
-         * Find the actual display window.
-         *
-         * We prefer UIRootSceneWindow.
-         * If unavailable, use the largest visible window.
-         */
         UIWindow *displayWindow = nil;
 
-        for (UIScene *scene in application.connectedScenes)
+
+        /*
+         * First:
+         * Find UIRootSceneWindow.
+         */
+        for (UIScene *scene
+             in application.connectedScenes)
         {
-            if (![scene isKindOfClass:[UIWindowScene class]])
+            if (![scene
+                  isKindOfClass:[UIWindowScene class]])
+            {
                 continue;
+            }
 
             UIWindowScene *windowScene =
                 (UIWindowScene *)scene;
@@ -596,7 +519,8 @@ static void SC16ApplyAll(void)
                 continue;
             }
 
-            for (UIWindow *window in windowScene.windows)
+            for (UIWindow *window
+                 in windowScene.windows)
             {
                 if (!window)
                     continue;
@@ -623,15 +547,19 @@ static void SC16ApplyAll(void)
 
 
         /*
-         * If there is no UIRootSceneWindow,
-         * select largest display-like window.
+         * Fallback:
+         * choose largest visible window.
          */
         if (!displayWindow)
         {
-            for (UIScene *scene in application.connectedScenes)
+            for (UIScene *scene
+                 in application.connectedScenes)
             {
-                if (![scene isKindOfClass:[UIWindowScene class]])
+                if (![scene
+                      isKindOfClass:[UIWindowScene class]])
+                {
                     continue;
+                }
 
                 UIWindowScene *windowScene =
                     (UIWindowScene *)scene;
@@ -657,12 +585,20 @@ static void SC16ApplyAll(void)
                 }
 
                 CGFloat oldArea =
-                    CGRectGetWidth(displayWindow.bounds) *
-                    CGRectGetHeight(displayWindow.bounds);
+                    CGRectGetWidth(
+                        displayWindow.bounds
+                    ) *
+                    CGRectGetHeight(
+                        displayWindow.bounds
+                    );
 
                 CGFloat newArea =
-                    CGRectGetWidth(candidate.bounds) *
-                    CGRectGetHeight(candidate.bounds);
+                    CGRectGetWidth(
+                        candidate.bounds
+                    ) *
+                    CGRectGetHeight(
+                        candidate.bounds
+                    );
 
                 if (newArea > oldArea)
                     displayWindow = candidate;
@@ -671,41 +607,33 @@ static void SC16ApplyAll(void)
 
 
         /*
-         * ========================================================
-         * SECOND PASS
+         * ======================================================
+         * Apply to SpringBoard windows.
          *
-         * This is the important change.
+         * Main display:
+         *     96% + crop
          *
-         * We no longer only process:
+         * Other visible SB windows:
+         *     96%
          *
-         *     UIRootSceneWindow
-         *     StatusBar
-         *     FullDisplay
-         *
-         * We process EVERY visible SpringBoard window
-         * that has a rootViewController and isn't a
-         * keyboard/system gesture window.
-         *
-         * This is what allows:
-         *
-         *     Home Screen
-         *     App Library
-         *     Lock Screen
-         *     Notification Center
-         *     Status Bar
-         *
-         * to participate.
-         * ========================================================
+         * This includes Status Bar windows.
+         * ======================================================
          */
-        for (UIScene *scene in application.connectedScenes)
+        for (UIScene *scene
+             in application.connectedScenes)
         {
-            if (![scene isKindOfClass:[UIWindowScene class]])
+            if (![scene
+                  isKindOfClass:[UIWindowScene class]])
+            {
                 continue;
+            }
 
             UIWindowScene *windowScene =
                 (UIWindowScene *)scene;
 
             /*
+             * IMPORTANT:
+             *
              * Never touch unattached scenes.
              */
             if (windowScene.activationState ==
@@ -714,7 +642,8 @@ static void SC16ApplyAll(void)
                 continue;
             }
 
-            for (UIWindow *window in windowScene.windows)
+            for (UIWindow *window
+                 in windowScene.windows)
             {
                 if (!window)
                     continue;
@@ -726,29 +655,26 @@ static void SC16ApplyAll(void)
                     continue;
 
                 /*
-                 * Keyboard is explicitly excluded.
+                 * Keyboard is never touched.
                  */
                 if (SC16IsKeyboardWindow(window))
                     continue;
 
                 /*
-                 * Other unsafe internal gesture windows
-                 * are also excluded.
+                 * Other unsafe windows are ignored.
                  */
                 if (SC16IsUnsafeWindow(window))
                     continue;
 
                 /*
-                 * No root VC = nothing safe to transform.
+                 * We need a root VC.
                  */
                 if (!window.rootViewController)
                     continue;
 
 
                 /*
-                 * Main display window:
-                 *
-                 * scale + crop.
+                 * Main SpringBoard display.
                  */
                 if (window == displayWindow)
                 {
@@ -758,11 +684,12 @@ static void SC16ApplyAll(void)
 
 
                 /*
-                 * Every other SpringBoard UI window:
+                 * Other SpringBoard windows.
                  *
-                 * scale only.
+                 * This is intentionally scale-only.
                  *
-                 * This includes StatusBar windows.
+                 * No crop is placed over Status Bar,
+                 * Lock Screen auxiliary windows, etc.
                  */
                 SC16ApplyScaleOnlyWindow(window);
             }
@@ -773,14 +700,18 @@ static void SC16ApplyAll(void)
 
 
     /*
-     * ============================================================
-     * NORMAL APPLICATION
-     * ============================================================
+     * ==========================================================
+     * NORMAL APPLICATIONS
+     * ==========================================================
      */
-    for (UIScene *scene in application.connectedScenes)
+    for (UIScene *scene
+         in application.connectedScenes)
     {
-        if (![scene isKindOfClass:[UIWindowScene class]])
+        if (![scene
+              isKindOfClass:[UIWindowScene class]])
+        {
             continue;
+        }
 
         UIWindowScene *windowScene =
             (UIWindowScene *)scene;
@@ -792,7 +723,9 @@ static void SC16ApplyAll(void)
         }
 
         UIWindow *window =
-            SC16FindApplicationWindow(windowScene);
+            SC16FindApplicationWindow(
+                windowScene
+            );
 
         if (window)
         {
@@ -854,9 +787,6 @@ static void SC16ScheduleApplyAfter(
 %hook UIWindow
 
 
-/*
- * Existing window becomes visible.
- */
 - (void)makeKeyAndVisible
 {
     %orig;
@@ -869,16 +799,6 @@ static void SC16ScheduleApplyAfter(
 }
 
 
-/*
- * Root VC changes.
- *
- * Important for:
- *
- * - Lock Screen
- * - Notification Center
- * - App Library
- * - SpringBoard transitions
- */
 - (void)setRootViewController:
     (UIViewController *)rootViewController
 {
@@ -892,9 +812,6 @@ static void SC16ScheduleApplyAfter(
 }
 
 
-/*
- * Window becomes visible/hidden.
- */
 - (void)setHidden:(BOOL)hidden
 {
     %orig(hidden);
@@ -908,14 +825,6 @@ static void SC16ScheduleApplyAfter(
 }
 
 
-/*
- * IMPORTANT:
- *
- * A lot of SpringBoard system windows are attached
- * dynamically.
- *
- * This hook catches that moment.
- */
 - (void)didMoveToWindow
 {
     %orig;
@@ -937,9 +846,6 @@ static void SC16ScheduleApplyAfter(
 %hook UIViewController
 
 
-/*
- * View becomes visible.
- */
 - (void)viewDidAppear:(BOOL)animated
 {
     %orig(animated);
@@ -955,11 +861,6 @@ static void SC16ScheduleApplyAfter(
 }
 
 
-/*
- * Layout can reset UIView transform.
- *
- * Reapply only to the root view of a window.
- */
 - (void)viewDidLayoutSubviews
 {
     %orig;
@@ -967,20 +868,21 @@ static void SC16ScheduleApplyAfter(
     if (!SC16Enabled())
         return;
 
-    UIWindow *window = self.view.window;
+    UIWindow *window =
+        self.view.window;
 
     if (!window)
         return;
 
+    /*
+     * Only root controller.
+     */
     if (window.rootViewController != self)
         return;
 
     if (SC16IsUnsafeWindow(window))
         return;
 
-    /*
-     * Do NOT touch keyboard.
-     */
     if (SC16IsKeyboardWindow(window))
         return;
 
@@ -1002,9 +904,6 @@ static void SC16ScheduleApplyAfter(
         SC16ApplyScale(view);
     }
 
-    /*
-     * Only full-display/root scene windows get crop.
-     */
     if (SC16IsRootSceneWindow(window) ||
         SC16IsFullDisplayWindow(window))
     {
@@ -1013,9 +912,6 @@ static void SC16ScheduleApplyAfter(
 }
 
 
-/*
- * Rotation / orientation.
- */
 - (void)viewWillTransitionToSize:
     (CGSize)size
     withTransitionCoordinator:
@@ -1056,8 +952,9 @@ static void SC16ScheduleApplyAfter(
         if (!SC16Enabled())
             return;
 
+
         /*
-         * Initial SpringBoard pass.
+         * Initial pass.
          */
         dispatch_after(
             dispatch_time(
@@ -1075,10 +972,6 @@ static void SC16ScheduleApplyAfter(
 
         /*
          * Second pass.
-         *
-         * Gives SpringBoard time to create
-         * Lock Screen / Notification Center /
-         * App Library windows.
          */
         dispatch_after(
             dispatch_time(
