@@ -2,9 +2,7 @@ name: Build ScreenScale16
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
+
 
 jobs:
   build:
@@ -18,8 +16,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            bash \
+            curl \
             clang \
-            llvm \
             make \
             git \
             perl \
@@ -27,58 +26,75 @@ jobs:
             unzip \
             xz-utils \
             zstd \
-            curl \
-            wget
+            lzma \
+            fakeroot \
+            dpkg
 
       - name: Install Theos
         run: |
-          git clone --recursive https://github.com/theos/theos.git /home/runner/theos
+          git clone --recursive \
+            https://github.com/theos/theos.git \
+            /home/runner/theos
+
           echo "THEOS=/home/runner/theos" >> "$GITHUB_ENV"
 
-      - name: Install iOS SDKs
+      - name: Install iOS Toolchain
         run: |
-          mkdir -p /home/runner/theos/sdks
+          export THEOS=/home/runner/theos
+
+          mkdir -p "$THEOS/toolchain"
+
+          echo "Downloading iOS toolchain..."
+
+          curl -L \
+            https://github.com/L1ghtmann/llvm-project/releases/latest/download/iOSToolchain-X86_64.tar.xz \
+            -o /tmp/iOSToolchain.tar.xz
+
+          tar -xJf /tmp/iOSToolchain.tar.xz \
+            -C "$THEOS/toolchain"
+
+          echo "Toolchain contents:"
+          find "$THEOS/toolchain" -maxdepth 4 -type f \
+            \( -name clang -o -name clang++ \) -print
+
+      - name: Install iOS SDK
+        run: |
+          export THEOS=/home/runner/theos
+
+          mkdir -p "$THEOS/sdks"
 
           git clone --depth 1 \
             https://github.com/theos/sdks.git \
             /tmp/theos-sdks
 
-          find /tmp/theos-sdks -maxdepth 1 -type d -name 'iPhoneOS*.sdk' \
-            -exec cp -R {} /home/runner/theos/sdks/ \;
+          cp -R /tmp/theos-sdks/iPhoneOS16.5.sdk \
+            "$THEOS/sdks/"
 
-          echo "Installed SDKs:"
-          ls -lah /home/runner/theos/sdks
+          echo "SDK:"
+          ls -lah "$THEOS/sdks/iPhoneOS16.5.sdk"
 
-      - name: Install Theos Linux toolchain
-        run: |
-          mkdir -p /home/runner/theos/toolchain/linux
-
-          git clone --recursive --depth 1 \
-            https://github.com/theos/llvm-project.git \
-            /tmp/llvm-project
-
-          cd /tmp/llvm-project
-
-          ./build-toolchain-linux.sh \
-            -o /home/runner/theos/toolchain/linux
-
-      - name: Verify toolchain
+      - name: Verify Theos
         run: |
           export THEOS=/home/runner/theos
 
-          echo "Checking clang..."
-          ls -lah "$THEOS/toolchain/linux/iphone/bin/" || true
+          echo "===== THEOS ====="
+          echo "$THEOS"
 
-          echo "Checking clang++..."
-          find "$THEOS/toolchain/linux" -name clang -o -name clang++
+          echo "===== SDK ====="
+          ls -lah "$THEOS/sdks"
+
+          echo "===== CLANG ====="
+          find "$THEOS/toolchain" \
+            -type f \
+            \( -name clang -o -name clang++ \) \
+            -print
+
+          echo "===== TARGET CLANG ====="
+          ls -lah "$THEOS/toolchain/linux/iphone/bin/" || true
 
       - name: Build
         run: |
           export THEOS=/home/runner/theos
-
-          echo "THEOS=$THEOS"
-          echo "SDK:"
-          ls "$THEOS/sdks"
 
           make package FINALPACKAGE=1
 
