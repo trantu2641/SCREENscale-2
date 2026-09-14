@@ -30,7 +30,8 @@ jobs:
             xz-utils \
             zstd \
             lzma \
-            dpkg
+            dpkg \
+            fakeroot
 
       - name: Install RootHide Theos
         run: |
@@ -48,7 +49,7 @@ jobs:
 
           echo "THEOS=$THEOS" >> "$GITHUB_ENV"
 
-          echo "===== THEOS ====="
+          echo "===== ROOT HIDE THEOS ====="
           ls -lah "$THEOS"
 
       - name: Install iOS 16.5 SDK
@@ -61,7 +62,9 @@ jobs:
 
           SDK_URL="https://github.com/theos/sdks/releases/download/master-146e41f/iPhoneOS16.5.sdk.tar.xz"
 
-          echo "Downloading iOS 16.5 SDK..."
+          echo "========================================"
+          echo "Downloading iOS 16.5 SDK"
+          echo "========================================"
           echo "$SDK_URL"
 
           curl \
@@ -72,7 +75,7 @@ jobs:
             "$SDK_URL" \
             -o /tmp/iPhoneOS16.5.sdk.tar.xz
 
-          echo "===== SDK ARCHIVE ====="
+          echo "SDK archive:"
           ls -lh /tmp/iPhoneOS16.5.sdk.tar.xz
 
           tar \
@@ -80,15 +83,19 @@ jobs:
             /tmp/iPhoneOS16.5.sdk.tar.xz \
             -C "$THEOS/sdks"
 
-          echo "===== INSTALLED SDK ====="
+          echo "========================================"
+          echo "Installed SDK"
+          echo "========================================"
+
           ls -lah "$THEOS/sdks"
 
-          test -d "$THEOS/sdks/iPhoneOS16.5.sdk"
+          test -d \
+            "$THEOS/sdks/iPhoneOS16.5.sdk"
 
           test -f \
             "$THEOS/sdks/iPhoneOS16.5.sdk/SDKSettings.json"
 
-      - name: Install iOS toolchain
+      - name: Install iOS Toolchain
         run: |
           set -e
 
@@ -98,12 +105,14 @@ jobs:
 
           ARCH="$(uname -m)"
 
+          echo "Runner architecture: $ARCH"
+
           case "$ARCH" in
             x86_64)
-              TOOLCHAIN_ARCH="linux-x86_64"
+              TOOLCHAIN_FILE="iOSToolchain-x86_64.tar.xz"
               ;;
-            aarch64|arm64)
-              TOOLCHAIN_ARCH="linux-arm64"
+            aarch64)
+              TOOLCHAIN_FILE="iOSToolchain-aarch64.tar.xz"
               ;;
             *)
               echo "Unsupported architecture: $ARCH"
@@ -111,9 +120,15 @@ jobs:
               ;;
           esac
 
-          TOOLCHAIN_URL="https://github.com/L1ghtmann/llvm-project/releases/latest/download/iOSToolchain-${TOOLCHAIN_ARCH}.tar.xz"
+          TOOLCHAIN_URL="https://github.com/L1ghtmann/llvm-project/releases/latest/download/$TOOLCHAIN_FILE"
 
-          echo "Runner architecture: $ARCH"
+          echo "========================================"
+          echo "Installing iOS Toolchain"
+          echo "========================================"
+
+          echo "Toolchain file:"
+          echo "$TOOLCHAIN_FILE"
+
           echo "Toolchain URL:"
           echo "$TOOLCHAIN_URL"
 
@@ -125,7 +140,7 @@ jobs:
             "$TOOLCHAIN_URL" \
             -o /tmp/iOSToolchain.tar.xz
 
-          echo "===== TOOLCHAIN ARCHIVE ====="
+          echo "Toolchain archive:"
           ls -lh /tmp/iOSToolchain.tar.xz
 
           tar \
@@ -133,9 +148,12 @@ jobs:
             /tmp/iOSToolchain.tar.xz \
             -C "$THEOS/toolchain"
 
-          echo "===== TOOLCHAIN FILES ====="
+          echo "========================================"
+          echo "Toolchain installed"
+          echo "========================================"
 
           find "$THEOS/toolchain" \
+            -maxdepth 6 \
             -type f \
             \( \
               -name clang \
@@ -144,69 +162,59 @@ jobs:
             \) \
             -print
 
-      - name: Verify environment
+          echo "========================================"
+          echo "Checking clang"
+          echo "========================================"
+
+          test -x \
+            "$THEOS/toolchain/linux/iphone/bin/clang"
+
+          "$THEOS/toolchain/linux/iphone/bin/clang" \
+            --version
+
+      - name: Verify Theos environment
         run: |
           set -e
 
           export THEOS=/home/runner/theos
 
-          echo "================================"
+          echo "========================================"
           echo "THEOS"
-          echo "================================"
+          echo "========================================"
 
           echo "$THEOS"
 
-          test -d "$THEOS"
-
-          echo "================================"
-          echo "ROOT HIDE THEOS"
-          echo "================================"
-
-          if [ -d "$THEOS/package" ]; then
-            find "$THEOS/package" \
-              -maxdepth 3 \
-              -type f \
-              | sort
-          fi
-
-          echo "================================"
+          echo "========================================"
           echo "SDK"
-          echo "================================"
+          echo "========================================"
 
-          test -d "$THEOS/sdks/iPhoneOS16.5.sdk"
+          test -d \
+            "$THEOS/sdks/iPhoneOS16.5.sdk"
 
           ls -lah \
             "$THEOS/sdks/iPhoneOS16.5.sdk"
 
-          echo "================================"
-          echo "SDK SETTINGS"
-          echo "================================"
-
-          test -f \
-            "$THEOS/sdks/iPhoneOS16.5.sdk/SDKSettings.json"
-
-          echo "================================"
+          echo "========================================"
           echo "TOOLCHAIN"
-          echo "================================"
+          echo "========================================"
 
-          find "$THEOS/toolchain" \
-            -type f \
-            \( \
-              -name clang \
-              -o -name clang++ \
-              -o -name ld64.lld \
-            \) \
-            -print
+          ls -lah \
+            "$THEOS/toolchain/linux/iphone/bin"
 
-          echo "================================"
-          echo "ROOTHIDE SCHEME"
-          echo "================================"
+          echo "========================================"
+          echo "CLANG"
+          echo "========================================"
+
+          "$THEOS/toolchain/linux/iphone/bin/clang" \
+            --version
+
+          echo "========================================"
+          echo "ROOT HIDE PACKAGE SCHEME"
+          echo "========================================"
 
           grep -R "roothide" \
-            "$THEOS" \
-            --include='*.mk' \
-            --include='*.py' \
-            --include='*.pl' \
+            "$THEOS/makefiles" \
+            "$THEOS/package" \
             2>/dev/null \
             | head -30 || true
 
@@ -216,33 +224,33 @@ jobs:
 
           export THEOS=/home/runner/theos
 
-          echo "================================"
-          echo "CLEAN"
-          echo "================================"
+          echo "========================================"
+          echo "Cleaning"
+          echo "========================================"
 
           make clean
 
-          echo "================================"
-          echo "BUILD SCREEN SCALE 16"
-          echo "================================"
+          echo "========================================"
+          echo "Building ScreenScale16"
+          echo "========================================"
 
           make package \
             FINALPACKAGE=1 \
             THEOS_PACKAGE_SCHEME=roothide
 
-      - name: Inspect package
+      - name: Inspect DEB
         run: |
           set -e
 
-          echo "================================"
+          echo "========================================"
           echo "PACKAGES"
-          echo "================================"
+          echo "========================================"
 
           ls -lah packages/
 
-          echo "================================"
-          echo "DEB INFO"
-          echo "================================"
+          echo "========================================"
+          echo "DEB INFORMATION"
+          echo "========================================"
 
           for deb in packages/*.deb; do
             echo
@@ -250,9 +258,9 @@ jobs:
             dpkg-deb -I "$deb"
           done
 
-          echo "================================"
+          echo "========================================"
           echo "DEB CONTENT"
-          echo "================================"
+          echo "========================================"
 
           for deb in packages/*.deb; do
             echo
