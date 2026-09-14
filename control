@@ -1,6 +1,6 @@
 Package: com.congtu.screenscale16
 Name: ScreenScale16
-Version: 1.0.7
+Version: 1.0.8
 Architecture: iphoneos-arm64e
 Description: iOS 16 screen scale tweak
 Maintainer: Tú Tú
