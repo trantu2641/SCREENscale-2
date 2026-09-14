@@ -1,0 +1,10 @@
+Package: com.tutu.screenscale16
+Name: ScreenScale16
+Description: ScreenScale16 96% scale with 34pt crop; conservative SpringBoard overlay handling.
+Maintainer: Tú Tú
+Author: Tú Tú
+Section: Tweaks
+Depends: mobilesubstrate
+Architecture: iphoneos-arm64e
+Version: 1.0.5
+Installed-Size: 200
