@@ -2,7 +2,6 @@ name: Build ScreenScale16
 
 on:
   workflow_dispatch:
-  
 
 jobs:
   build:
@@ -23,16 +22,34 @@ jobs:
             python3 \
             unzip \
             xz-utils \
-            zstd
+            zstd \
+            curl
 
       - name: Install Theos
         run: |
           git clone --recursive https://github.com/theos/theos.git /home/runner/theos
           echo "THEOS=/home/runner/theos" >> "$GITHUB_ENV"
 
+      - name: Install iOS SDK
+        run: |
+          mkdir -p /home/runner/theos/sdks
+
+          git clone --depth 1 \
+            https://github.com/theos/sdks.git \
+            /tmp/theos-sdks
+
+          cp -R /tmp/theos-sdks/iPhoneOS*.sdk \
+            /home/runner/theos/sdks/
+
+          echo "Installed SDKs:"
+          ls -lah /home/runner/theos/sdks
+
       - name: Build
         run: |
           export THEOS=/home/runner/theos
+          echo "THEOS=$THEOS"
+          echo "SDKs:"
+          ls -lah "$THEOS/sdks"
           make package FINALPACKAGE=1
 
       - name: Upload DEB
