@@ -1,23 +1,42 @@
 name: Build ScreenScale16
+
 on:
   workflow_dispatch:
- 
+  
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y clang make git perl python3 unzip xz-utils zstd
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang \
+            make \
+            git \
+            perl \
+            python3 \
+            unzip \
+            xz-utils \
+            zstd
+
       - name: Install Theos
-        run: git clone --recursive https://github.com/theos/theos.git /home/runner/theos && echo "THEOS=/home/runner/theos" >> "$GITHUB_ENV"
+        run: |
+          git clone --recursive https://github.com/theos/theos.git /home/runner/theos
+          echo "THEOS=/home/runner/theos" >> "$GITHUB_ENV"
+
       - name: Build
         run: |
           export THEOS=/home/runner/theos
-          make clean
-          make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=roothide
-      - name: Upload package
+          make package FINALPACKAGE=1
+
+      - name: Upload DEB
         uses: actions/upload-artifact@v4
         with:
-          name: ScreenScale16-safe
-          path: packages/*
+          name: ScreenScale16
+          path: packages/*.deb
